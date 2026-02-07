@@ -7,6 +7,7 @@ function Home() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalRecipes, setTotalRecipes] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [query, setQuery] = useState<string>("");
   const [searchText, setSearchText] = useState<string>("");
   const recipesPerPage = 6;
@@ -15,20 +16,26 @@ function Home() {
 
   useEffect(() => {
     const fetchRecipes = async () => {
-      const skip = (currentPage - 1) * recipesPerPage;
-      const isSearching = query.trim() !== "";
+      try {
+        const skip = (currentPage - 1) * recipesPerPage;
+        const isSearching = query.trim() !== "";
 
-      const url = isSearching
-        ? `https://dummyjson.com/recipes/search?q=${query}&limit=${recipesPerPage}&skip=${skip}`
-        : `https://dummyjson.com/recipes?limit=${recipesPerPage}&skip=${skip}`;
+        const url = isSearching
+          ? `https://dummyjson.com/recipes/search?q=${query}&limit=${recipesPerPage}&skip=${skip}`
+          : `https://dummyjson.com/recipes?limit=${recipesPerPage}&skip=${skip}`;
 
-      const response = await fetch(url);
-      const data = await response.json();
+        const response = await fetch(url);
+        const data = await response.json();
 
-      const resultRecipes = data.recipes || data.results;
+        const resultRecipes = data.recipes || data.results;
 
-      setRecipes(resultRecipes);
-      setTotalRecipes(data.total);
+        setRecipes(resultRecipes);
+        setTotalRecipes(data.total);
+      } catch (error) {
+        console.error("Error fetching recipes:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchRecipes();
@@ -37,13 +44,32 @@ function Home() {
   console.log(recipes);
 
   const handleSearch = (search: string) => {
+    if (search.trim() === "") {
+      return;
+    }
+    setIsLoading(true);
     setQuery(search);
     setCurrentPage(1);
+    setSearchText("");
   };
 
   return (
     <section className="p-5">
-      {recipes.length > 0 ? (
+      {!isLoading && recipes.length === 0 && (
+        <>
+          <p className="text-center text-gray-500 mt-10">No recipes found.</p>
+          <button
+            onClick={() => {
+              setCurrentPage(1);
+              setQuery("");
+            }}
+            className="text-blue-600 hover:underline mt-4 block text-center cursor-pointer"
+          >
+            Back to Home
+          </button>
+        </>
+      )}
+      {recipes.length > 0 && !isLoading && (
         <>
           <div className="w-full flex justify-center mt-3 mb-5">
             <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-md border w-full max-w-md">
@@ -66,6 +92,13 @@ function Home() {
               </button>
             </div>
           </div>
+
+          {query && (
+            <p className="text-gray-500 mb-4">
+              Showing results for:{" "}
+              <span className="font-semibold text-gray-800">{query}</span>
+            </p>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {recipes.map((recipe) => (
@@ -115,7 +148,9 @@ function Home() {
             </button>
           </div>
         </>
-      ) : (
+      )}
+
+      {isLoading && (
         <p className="text-center text-gray-500 mt-10">Loading recipes ...</p>
       )}
     </section>
